@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Takedown Copilot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --line:#262b35; --text:#e9ebef; --muted:#9aa3b2;
+    --accent:#6c8cff; --accent2:#7fe3c4; --danger:#ff6b6b; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:32px 16px;
+  }
+  .wrap{max-width:780px; margin:0 auto;}
+  h1{font-size:26px; margin:0 0 4px;}
+  h2{font-size:17px; margin:0 0 4px; color:var(--accent2);}
+  .sub{color:var(--muted); margin:0 0 10px; font-size:14px;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px; margin-bottom:18px;
+  }
+  label{display:block; font-size:13px; color:var(--muted); margin:14px 0 6px;}
+  label:first-child{margin-top:0;}
+  select, input, textarea{
+    width:100%; background:#0d0f14; border:1px solid var(--line); color:var(--text);
+    padding:10px 12px; border-radius:10px; font-size:14px; font-family:inherit;
+  }
+  textarea{min-height:70px; resize:vertical;}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media(max-width:560px){.row{grid-template-columns:1fr;}}
+  button.primary{
+    margin-top:18px; width:100%; padding:13px; border:none; border-radius:10px;
+    background:linear-gradient(135deg,var(--accent),#8a6cff); color:#fff;
+    font-size:15px; font-weight:600; cursor:pointer;
+  }
+  button.secondary{
+    margin-top:18px; width:100%; padding:11px; border:1px solid var(--accent2);
+    border-radius:10px; background:transparent; color:var(--accent2);
+    font-size:14px; font-weight:600; cursor:pointer;
+  }
+  button.primary:hover, button.secondary:hover{opacity:.88;}
+  button:disabled{opacity:.5; cursor:not-allowed;}
+  .output{display:none;}
+  .output.show{display:block;}
+  .out-card{margin-top:14px;}
+  .out-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .out-head h3{margin:0; font-size:15px; color:var(--accent2);}
+  .copy-btn{
+    background:#222838; border:1px solid var(--line); color:var(--text);
+    padding:6px 12px; border-radius:8px; font-size:12px; cursor:pointer;
+  }
+  .copy-btn:hover{background:#2c3346;}
+  pre{
+    white-space:pre-wrap; word-wrap:break-word; background:#0d0f14; border:1px solid var(--line);
+    border-radius:10px; padding:14px; font-size:13px; line-height:1.55; color:#dfe2e9;
+    font-family:'Consolas',monospace; margin:0;
+  }
+  .checklist li{margin-bottom:8px; font-size:14px;}
+  .badge{
+    display:inline-block; background:rgba(108,140,255,.15); color:var(--accent);
+    font-size:11px; padding:3px 9px; border-radius:20px; margin-bottom:14px;
+  }
+  .result-item{
+    background:#0d0f14; border:1px solid var(--line); border-radius:10px;
+    padding:12px; margin-bottom:10px; display:flex; gap:10px; align-items:flex-start;
+  }
+  .result-item input[type="checkbox"]{width:auto; margin-top:3px;}
+  .result-text a{color:var(--accent); font-size:13px; text-decoration:none; word-break:break-all;}
+  .result-text p{margin:4px 0 0; font-size:12px; color:var(--muted);}
+  .status{font-size:13px; color:var(--muted); margin-top:10px;}
+  .status.error{color:var(--danger);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="badge">Track 02</span>
+  <h1>🛡️ Takedown Copilot</h1>
+  <p class="sub">Scan for impersonation, pick what's real, generate a takedown package - in one flow. No sign-up needed.</p>
+
+  <!-- STEP 1: SCAN -->
+  <div class="card">
+    <h2>Step 1 - Scan for impersonation (coming soon)</h2>
+    <p class="sub">We run a few search queries for your name/handle. This finds public mentions - it does NOT confirm anything. You decide what's real.</p>
+    <label>Your real name and/or handle(s)</label>
+    <input id="scanName" placeholder="e.g. Jordan Reyes, @jordanmakes">
+    <button class="secondary" disabled>🔍 Scan for Mentions</button>
+    <div id="scanStatus" class="status"></div>
+    <div id="scanResults"></div>
+    <button class="secondary" id="addSelectedBtn" style="display:none" onclick="addSelectedToEvidence()">Add Selected to Evidence ↓</button>
+  </div>
+
+  <!-- STEP 2: DETAILS + GENERATE -->
+  <div class="card">
+    <h2>Step 2 - Confirm details and generate</h2>
+    <label>Your name / channel name</label>
+    <input id="creatorName" placeholder="e.g. Jordan Reyes / @jordanmakes">
+
+    <div class="row">
+      <div>
+        <label>Platform where it's happening</label>
+        <select id="platform">
+          <option>YouTube</option>
+          <option>TikTok</option>
+          <option>Instagram</option>
+          <option>X (Twitter)</option>
+          <option>Facebook</option>
+          <option>Other / Unknown site</option>
+        </select>
+      </div>
+      <div>
+        <label>Type of impersonation</label>
+        <select id="impType">
+          <option value="video">AI deepfake video (face swap)</option>
+          <option value="voice">AI voice clone</option>
+          <option value="profile">Fake/clone account or profile</option>
+          <option value="image">AI-generated image of me</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Link(s) to the content (one per line - auto-filled from scan, or paste your own)</label>
+    <textarea id="evidenceLinks" placeholder="https://...&#10;https://..."></textarea>
+
+    <label>What happened? (short description)</label>
+    <textarea id="description" placeholder="e.g. A TikTok account is posting AI-generated videos of my face promoting a crypto investment I have never endorsed."></textarea>
+
+    <label>Your email (for the notice, optional)</label>
+    <input id="email" placeholder="you@example.com">
+
+    <button class="primary" id="genBtn" onclick="generate()">✨ Generate My Takedown Package</button>
+    <div id="genStatus" class="status"></div>
+  </div>
+
+  <div id="output" class="output">
+    <div class="card out-card">
+      <div class="out-head"><h3>1. Platform Report Blurb</h3><button class="copy-btn" onclick="copyText('reportText')">Copy</button></div>
+      <pre id="reportText"></pre>
+    </div>
+    <div class="card out-card">
+      <div class="out-head"><h3>2. Formal Takedown Notice (email)</h3><button class="copy-btn" onclick="copyText('noticeText')">Copy</button></div>
+      <pre id="noticeText"></pre>
+    </div>
+    <div class="card out-card">
+      <div class="out-head"><h3>3. What To Do Next</h3></div>
+      <ul class="checklist" id="checklist"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   FILL THESE IN - both keys are restricted by HTTP referrer
+   in Google Cloud Console, so it's safe for them to live
+   here in the front-end code.
+   ========================================================= */
+const OPENROUTER_API_KEY = "YOUR_OPENROUTER_API_KEY";
+const SEARCH_API_KEY  = "YOUR_SEARCH_ENGINE_ID";
+const SEARCH_CX       = "9052c2fb445b74fdb";
+/* ========================================================= */
+
+const impLabels = {
+  video: "an AI-generated deepfake video using my face/likeness",
+  voice: "an AI-generated voice clone impersonating my voice",
+  profile: "a fake/clone account impersonating my identity and brand",
+  image: "an AI-generated image misusing my likeness"
+};
+const platformReportNotes = {
+  "YouTube": "Use YouTube's 'Privacy complaint' or 'Impersonation' report form (not the general copyright form, unless it also reuses your copyrighted footage).",
+  "TikTok": "Use TikTok's in-app 'Report' → 'Impersonation' or 'Harassment' flow on the specific video/account.",
+  "Instagram": "Use Instagram's 'Report' → 'This is pretending to be someone else' flow, attach the same evidence links.",
+  "X (Twitter)": "Use X's impersonation report form under Settings → Privacy & Safety → Report a problem.",
+  "Facebook": "Use Facebook's 'Find Support or Report' on the post or profile, choose 'Pretending to Be Someone'.",
+  "Other / Unknown site": "Look for an 'Abuse', 'Trust & Safety', or 'DMCA' contact, usually in the site footer or a /legal or /abuse page."
+};
+
+// ---------- STEP 1: SCAN (Google Custom Search API directly) ----------
+async function runScan(){
+  const name = document.getElementById('scanName').value.trim();
+  const statusEl = document.getElementById('scanStatus');
+  const resultsEl = document.getElementById('scanResults');
+  resultsEl.innerHTML = "";
+  document.getElementById('addSelectedBtn').style.display = "none";
+
+  if(!name){ statusEl.textContent = "Enter a name or handle to scan for."; statusEl.className="status error"; return; }
+  statusEl.textContent = "Scanning...";
+  statusEl.className = "status";
+
+  const queries = [
+    `"${name}" deepfake`,
+    `"${name}" AI clone`,
+    `"${name}" fake account`
+  ];
+
+  let allResults = [];
+  try{
+    for(const q of queries){
+      const url = `https://www.googleapis.com/customsearch/v1?key=${SEARCH_API_KEY}&cx=${SEARCH_CX}&q=${encodeURIComponent(q)}&num=5`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error?.message || `Search error: ${res.status}`);
+      if(data.items){
+        allResults = allResults.concat(data.items.map(r => ({
+          link: r.link, title: r.title, snippet: r.snippet
+        })));
+      }
+    }
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = "Scan failed: " + err.message;
+    statusEl.className = "status error";
+    return;
+  }
+
+  if(allResults.length === 0){
+    statusEl.textContent = "No public mentions found for these queries. That's good news, or try different search terms.";
+    return;
+  }
+
+  statusEl.textContent = `Found ${allResults.length} results. Review them, check any that look like real impersonation, ignore the rest.`;
+
+  allResults.forEach((r) => {
+    const div = document.createElement('div');
+    div.className = 'result-item';
+    div.innerHTML = `
+      <input type="checkbox" class="scanCheck" data-link="${r.link}">
+      <div class="result-text">
+        <a href="${r.link}" target="_blank">${r.title || r.link}</a>
+        <p>${r.snippet || ''}</p>
+      </div>`;
+    resultsEl.appendChild(div);
+  });
+
+  document.getElementById('addSelectedBtn').style.display = "block";
+}
+
+function addSelectedToEvidence(){
+  const checked = document.querySelectorAll('.scanCheck:checked');
+  if(checked.length === 0) return;
+  const linksBox = document.getElementById('evidenceLinks');
+  const existing = linksBox.value.trim();
+  const newLinks = Array.from(checked).map(c => c.dataset.link).join('\n');
+  linksBox.value = existing ? existing + '\n' + newLinks : newLinks;
+  linksBox.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+// ---------- STEP 2: GENERATE (Gemini API directly) ----------
+async function generate(){
+  const genBtn = document.getElementById('genBtn');
+  const statusEl = document.getElementById('genStatus');
+
+  const name = document.getElementById('creatorName').value.trim() || "the creator";
+  const platform = document.getElementById('platform').value;
+  const impType = document.getElementById('impType').value;
+  const links = document.getElementById('evidenceLinks').value.trim() || "[no link provided]";
+  const desc = document.getElementById('description').value.trim() || "[no description provided]";
+  const email = document.getElementById('email').value.trim() || "[no email provided]";
+  const today = new Date().toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'});
+
+  genBtn.disabled = true;
+  statusEl.textContent = "Generating...";
+  statusEl.className = "status";
+
+  const prompt = `You are helping a young content creator respond to online impersonation involving AI-generated content. Write in clear, professional, calm language. Do NOT invent facts beyond what is given.
+
+Details:
+- Creator name/handle: ${name}
+- Platform: ${platform}
+- Type of impersonation: ${impLabels[impType]}
+- Evidence link(s): ${links}
+- Description from the creator: ${desc}
+- Email: ${email}
+- Today's date: ${today}
+- Platform-specific reporting tip: ${platformReportNotes[platform]}
+
+Return ONLY valid JSON, no markdown formatting, no backticks, in this exact structure:
+{
+  "report_blurb": "a short paragraph (under 120 words) formatted for pasting into a platform's in-app impersonation report form, ending with the platform-specific tip",
+  "formal_notice": "a full formal takedown email including a Subject line, addressed 'To Whom It May Concern,' body explaining the situation, and a sign-off with the creator's name, email, and date",
+  "checklist": ["6 short, concrete next-step action items as plain strings, specific to this situation"]
+}`;
+
+  try{
+    const url = `https://openrouter.ai/api/v1/chat/completions`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4 }
+      })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error?.message || `Gemini error: ${res.status}`);
+
+    let raw = data.candidates[0].content.parts[0].text.trim();
+    raw = raw.replace(/^```json/,'').replace(/^```/,'').replace(/```$/,'').trim();
+    const parsed = JSON.parse(raw);
+
+    document.getElementById('reportText').textContent = parsed.report_blurb;
+    document.getElementById('noticeText').textContent = parsed.formal_notice;
+    const ul = document.getElementById('checklist');
+    ul.innerHTML = "";
+    parsed.checklist.forEach(item=>{
+      const li = document.createElement('li');
+      li.textContent = item;
+      ul.appendChild(li);
+    });
+
+    statusEl.textContent = "Generated";
+    document.getElementById('output').classList.add('show');
+    document.getElementById('output').scrollIntoView({behavior:'smooth'});
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = "";
+    statusEl.className = "status error";
+    renderTemplateFallback(name, platform, impType, links, desc, email, today);
+  }
+  genBtn.disabled = false;
+}
+
+// ---------- FALLBACK TEMPLATE (used only if the Gemini call fails) ----------
+function renderTemplateFallback(name, platform, impType, links, desc, email, today){
+  const report = `IMPERSONATION / SYNTHETIC MEDIA REPORT
+
+Platform: ${platform}
+Content in question: ${links}
+
+This content depicts ${impLabels[impType]} without my consent. I am the real ${name}, and I did not create, authorize, or approve this content.
+
+Description: ${desc}
+
+I am requesting that this content be reviewed and removed under your platform's impersonation / synthetic & manipulated media policy.
+
+Platform-specific tip: ${platformReportNotes[platform]}`;
+
+  const notice = `Subject: Takedown Request – Unauthorized AI-Generated Content Impersonating ${name}
+
+To Whom It May Concern,
+
+My name is ${name}, and I am writing to formally request the removal of content hosted on ${platform} that uses my likeness without consent.
+
+The content in question (${links}) contains ${impLabels[impType]}. I did not create, authorize, license, or otherwise approve this content. ${desc}
+
+This content misrepresents me and may mislead viewers into believing I created, endorsed, or am otherwise associated with it. I request that it be removed promptly under your platform's policies on impersonation, synthetic media, and unauthorized use of likeness.
+
+Please confirm receipt of this request and let me know if any further information is needed.
+
+Sincerely,
+${name}
+${email}
+Date: ${today}`;
+
+  document.getElementById('reportText').textContent = report;
+  document.getElementById('noticeText').textContent = notice;
+
+  const checklist = [
+    "Screenshot/screen-record the content NOW, before it can be deleted or edited by the original poster.",
+    "Save the direct URL and the exact date/time you found it.",
+    `Submit the report above through ${platform}'s built-in reporting tool — this is usually faster than email.`,
+    "If it's not resolved in 48–72 hours, send the formal notice to the platform's Trust & Safety or legal contact.",
+    "If money, scams, or threats are involved, also consider reporting to local authorities or, in the US, the FTC at reportfraud.ftc.gov.",
+    "Tell your audience directly (a pinned post/story) that the content is fake, so it doesn't spread further while the takedown is pending."
+  ];
+  const ul = document.getElementById('checklist');
+  ul.innerHTML = "";
+  checklist.forEach(item=>{
+    const li = document.createElement('li');
+    li.textContent = item;
+    ul.appendChild(li);
+  });
+
+  document.getElementById('output').classList.add('show');
+  document.getElementById('output').scrollIntoView({behavior:'smooth'});
+}
+
+function copyText(id){
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    event.target.textContent = "Copied!";
+    setTimeout(()=>{ event.target.textContent = "Copy"; }, 1500);
+  });
+}
+</script>
+</body>
+</html>
